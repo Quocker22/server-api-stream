@@ -22,9 +22,9 @@ internal class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
-        builder.Services.AddControllers();
 
-        // Configure Swagger/OpenAPI
+        builder.Services.AddControllers();
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {
@@ -37,55 +37,48 @@ internal class Program
             });
             c.AddSecurityRequirement(new OpenApiSecurityRequirement
             {
-                {
-                    new OpenApiSecurityScheme
                     {
-                        Name = "Authorization",
-                        Type = SecuritySchemeType.ApiKey,
-                        In = ParameterLocation.Header,
-                        Reference = new OpenApiReference
+                        new OpenApiSecurityScheme
                         {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Authorization"
+                            Name = "Authorization",
+                            Type = SecuritySchemeType.ApiKey,
+                            In = ParameterLocation.Header,
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Authorization"
+                            },
                         },
-                    },
-                    new string[] {}
-                }
+                        new string[] {}
+                    }
             });
         });
-
-        // Configure CORS to allow specific origins
-        builder.Services.AddCors(options =>
+        builder.Services.AddCors(option =>
         {
-            options.AddPolicy("AllowAll", builder =>
+            option.AddPolicy("AllowFE", builder =>
             {
-                builder.AllowAnyOrigin()
-                        .AllowAnyHeader()
-                        .AllowAnyMethod();
+                builder.WithOrigins("http://localhost:4200", "https://localhost:7104/")
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
             });
         });
 
-        // Configure settings
         builder.Services.Configure<LiveStreamDatabaseSetting>(
             builder.Configuration.GetSection("LiveStreamDatabase"));
         builder.Services.Configure<EmailSetting>(
             builder.Configuration.GetSection("EmailServerSetting"));
-
         builder.Services.AddSingleton<ILiveStreamDatabaseSetting>(sp =>
-            sp.GetRequiredService<IOptions<LiveStreamDatabaseSetting>>().Value);
+                        sp.GetRequiredService<IOptions<LiveStreamDatabaseSetting>>().Value);
         builder.Services.AddSingleton(sp =>
-            sp.GetRequiredService<IOptions<EmailSetting>>().Value);
+                        sp.GetRequiredService<IOptions<EmailSetting>>().Value);
 
-        // Configure MongoDB context
         builder.Services.AddScoped<IMongoContext, MongoContext>();
-
-        // Configure Redis connection
         builder.Services.AddSingleton<IConnectionMultiplexer>(cfg =>
         {
             return ConnectionMultiplexer.Connect(builder.Configuration.GetValue<string>("Redis")!);
         });
 
-        // Configure repositories
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IVideoRepository, VideoRepository>();
         builder.Services.AddScoped<IRoomRepository, RoomRepository>();
@@ -94,7 +87,6 @@ internal class Program
         builder.Services.AddScoped<ICourseRepository, CourseRepository>();
         builder.Services.AddScoped<ICrsContentRepository, CrsContentRepository>();
 
-        // Configure services
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IVideoService, VideoService>();
         builder.Services.AddScoped<IRoomService, RoomService>();
@@ -106,7 +98,6 @@ internal class Program
         builder.Services.AddScoped<ICourseService, CourseService>();
         builder.Services.AddScoped<ICrsContentService, CrsContentService>();
 
-        // Configure JWT Authentication
         builder.Services.AddAuthentication(cfg =>
         {
             cfg.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -120,7 +111,8 @@ internal class Program
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes("this is my top jwt secret key for authentication and i append it to have enough length")
+                    Encoding.UTF8
+                    .GetBytes("this is my top jwt secret key for authentication and i append it to have enough lenght")
                 ),
                 ValidateIssuer = false,
                 ValidateAudience = false,
@@ -128,21 +120,39 @@ internal class Program
             };
         });
 
-        // Configure SignalR
         builder.Services.AddSignalR();
         builder.Services.AddAutoMapper(typeof(Program));
 
-        // Additional configurations
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddHttpClient();
+        //builder.Services.AddSignalR(e =>
+        //{
+        //    e.MaximumReceiveMessageSize = 102400000;
+        //    e.EnableDetailedErrors = true;
+        //    e.KeepAliveInterval = TimeSpan.FromMinutes(5);
+        //}).AddJsonProtocol(option =>
+        //{
+        //    option.PayloadSerializerOptions.PropertyNamingPolicy = null;
+        //});
+        //builder.WebHost.ConfigureKestrel(serverOption =>
+        //{
+        //    serverOption.ListenAnyIP(80);
+        //    serverOption.ListenAnyIP(443, option =>
+        //    {
+        //        string filePathConfig = "/app/wwwroot/https"!;
+        //        var filePaths = Directory.GetFiles(filePathConfig).ToList()[0];
 
+        //        option.UseHttps(filePaths, "password");
+        //    });
+        //});
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
+
         app.UseSwagger();
         app.UseSwaggerUI();
 
-        app.UseCors("AllowAll");
+        app.UseCors("AllowFE");
         app.UseHttpsRedirection();
 
         app.UseMiddleware<JwtCookieMiddleware>();
@@ -150,11 +160,9 @@ internal class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseStaticFiles();
-
         app.MapControllers();
         app.MapHub<StreamHub>("/hub");
         app.MapHub<ChatLiveHub>("/chatHub");
-
         app.Run();
     }
 }
