@@ -23,7 +23,7 @@ internal class Program
 
         // Add services to the container.
         builder.Services.AddControllers();
-
+        
         // Configure Swagger/OpenAPI
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
@@ -57,11 +57,12 @@ internal class Program
         // Configure CORS to allow specific origins
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy("AllowAll", builder =>
+            options.AddPolicy("AllowFE", builder =>
             {
-                builder.AllowAnyOrigin()
-                        .AllowAnyHeader()
-                        .AllowAnyMethod();
+                builder.WithOrigins("http://localhost:4200", "https://localhost:7104", "https://cms.hightfive.click")
+                       .AllowAnyHeader()
+                       .AllowAnyMethod()
+                       .AllowCredentials();
             });
         });
 
@@ -142,7 +143,7 @@ internal class Program
         app.UseSwagger();
         app.UseSwaggerUI();
 
-        app.UseCors("AllowAll");
+        app.UseCors("AllowFE");
         app.UseHttpsRedirection();
 
         app.UseMiddleware<JwtCookieMiddleware>();
